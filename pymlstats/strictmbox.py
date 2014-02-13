@@ -46,17 +46,54 @@ class strict_mbox(mailbox.mbox):
     def _generate_toc(self):
         """Generate key-to-(start, stop) table of contents."""
         starts, stops = [], []
+        last_was_from = False
+        last_was_empty = False
         self._file.seek(0)
         while True:
             line_pos = self._file.tell()
             line = self._file.readline()
             if line.startswith('From ') and self._strict_isrealfromline(line):
+                # There is a new message, but in the line before was just
+                # another new message. We assume that the previous one was
+                # not a new message, but a text with the same pattern.
+                if last_was_from:
+                    starts.pop()
+                    stops.pop()
                 if len(stops) < len(starts):
-                    stops.append(line_pos - len(os.linesep))
+                    if last_was_empty:
+                        stops.append(line_pos - len(os.linesep))
+                    elif not last_was_from:
+                        stops.append(line_pos)
+                    else:
+                        stops.append(line_pos - len(os.linesep))
                 starts.append(line_pos)
+                last_was_from = True
+                last_was_empty = False
             elif line == '':
-                stops.append(line_pos)
+                if last_was_empty:
+                    stops.append(line_pos - len(os.linesep))
+                else:
+                    stops.append(line_pos)
+                last_was_from = False
                 break
+            elif line == os.linesep:
+                if last_was_from:
+                    starts.pop()
+                    stops.pop()
+                last_was_from = False
+                last_was_empty = True
+            else:
+                # If this is new a message and have an empty line right
+                # after, then the message does not have headers.
+                # In such case, it is not a new message but a text with
+                # similar pattern (false positive for new message)
+                if last_was_from and len(line.strip()) == 0:
+                    starts.pop()
+                    stops.pop()
+
+                last_was_from = False
+                last_was_empty = False
+
         self._toc = dict(enumerate(zip(starts, stops)))
         self._next_key = len(self._toc)
         self._file_length = self._file.tell()

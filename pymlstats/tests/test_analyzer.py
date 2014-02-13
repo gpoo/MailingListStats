@@ -34,7 +34,7 @@ class MailArchiveAnalyzerEncodingTest(unittest.TestCase):
 
     def check_single_message(self, expected, messages):
         for key, value in expected.items():
-            output = u"{}:\n" \
+            output = u"\n{}:\n" \
                      u"\tExpected: '{}'\n" \
                      u"\tObtained: '{}'".format(key, value, messages[0][key])
             self.assertEqual(value, messages[0][key], output)
@@ -45,7 +45,7 @@ class MailArchiveAnalyzerEncodingTest(unittest.TestCase):
         expected = {
             'body': u'Hi!\n\nA message in English, with a signature '
                     u'with a different encoding.\n\nregards, G?ran'
-                    u'\n\n\n\n',
+                    u'\n\n\n',
             'content-type': None,
             'date': '2010-12-01 14:26:40',
             'date_tz': '3600',
@@ -113,7 +113,7 @@ class MailArchiveAnalyzerEncodingTest(unittest.TestCase):
                 u'> desktop-devel-list mailing list\n'
                 u'> desktop-devel-list@gnome.org\n'
                 u'> http://mail.gnome.org/mailman/listinfo/desktop-devel-list'
-                u'\n\n',
+                u'\n',
             'content-type': u'text/plain; charset=utf-8',
             'date': '2008-03-17 11:19:29',
             'date_tz': '3600',
@@ -179,4 +179,36 @@ class MailArchiveAnalyzerEncodingTest(unittest.TestCase):
 
         self.assertEqual(1, len(messages), '# of messages')
         self.check_single_message(expected, messages)
+        self.assertEqual(0, non_parsed, 'non_parsed')
+
+    def test_single_message_tricky(self):
+        '''Multiple From's that are not new messages'''
+        maa = self.get_analyzer('mlstats-2007.mbox')
+        messages, non_parsed = maa.get_messages()
+        expected = {
+            'body':
+                u'Vaya, olvid? los archivos que testifican todo esto. Ah? van.'
+                u'\n\n'
+                u'> Libresoft-tools-devel mailing list\n'
+                u'> Libresoft-tools-devel at lists.morfeo-project.org\n'
+                u'-------------- next part --------------\n'
+                u'From erkko.anttila at nokia.com  Mon Aug  1 12:51:16 2005\n'
+                u'From florian.boor at kernelconcepts.de  Mon Aug  1 13:12:02 2005'
+                u'\nFrom czr770 at iohazard.tts.fi  Mon Aug  1 14:43:49 2005'
+                u'\n',
+            'content-type': None,
+            'date': '2007-02-14 19:46:10',
+            'date_tz': '0',
+            'in-reply-to': u'<200702142044.30890.jgascon@gsyc.escet.urjc.es>',
+            'list-id': None,
+            'message-id': u'<200702142047.46199.jgascon@gsyc.escet.urjc.es>',
+            'received': None,
+            'references': u'<200702142044.30890.jgascon@gsyc.escet.urjc.es>',
+            'from': [(u'Jorge Gascon Perez', u'jgascon@gsyc.escet.urjc.es')],
+            'to': None,
+            'cc': None
+        }
+
+        self.check_single_message(expected, messages)
+        self.assertEqual(2, len(messages), '# of messages')
         self.assertEqual(0, non_parsed, 'non_parsed')
